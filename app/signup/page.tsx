@@ -13,16 +13,19 @@ import {
   InputAdornment,
   IconButton,
   Link as MuiLink,
-  Checkbox,
-  FormControlLabel,
   CircularProgress,
 } from "@mui/material";
-import { Visibility, VisibilityOff, School } from "@mui/icons-material";
-import { loginSchema, LoginFormData } from "@/lib/validations/auth.schema";
+import {
+  Visibility,
+  VisibilityOff,
+  School,
+  ArrowForward,
+} from "@mui/icons-material";
+import { signupSchema, SignupFormData } from "@/lib/validations/auth.schema";
 import { authApi } from "@/lib/api/auth.api";
 import { useAuthStore } from "@/store/auth.store";
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [showPassword, setShowPassword] = useState(false);
@@ -33,15 +36,15 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
   });
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: SignupFormData) => {
     setLoading(true);
     setError("");
     try {
-      const res = await authApi.login(data);
+      const res = await authApi.signup(data);
       const { token, user } = res.data.data;
       setAuth(token, {
         sub: user._id,
@@ -52,7 +55,9 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      setError(error.response?.data?.message || "Email yoki parol noto'g'ri");
+      setError(
+        error.response?.data?.message || "Ro'yxatdan o'tishda xatolik yuz berdi"
+      );
     } finally {
       setLoading(false);
     }
@@ -72,11 +77,11 @@ export default function LoginPage() {
         sx={{
           background: "linear-gradient(135deg, #1E3A5F 0%, #0F172A 100%)",
           color: "white",
-          pt: 6,
-          pb: 5,
+          pt: 5,
+          pb: 4,
           px: 3,
           textAlign: "center",
-          borderRadius: { xs: "0 0 24px 24px", md: 0 },
+          borderRadius: "0 0 24px 24px",
         }}
       >
         <Box
@@ -107,7 +112,7 @@ export default function LoginPage() {
         sx={{
           flex: 1,
           px: 2.5,
-          pt: 4,
+          pt: 3,
           pb: 4,
           maxWidth: 480,
           width: "100%",
@@ -115,10 +120,10 @@ export default function LoginPage() {
         }}
       >
         <Typography variant="h6" fontWeight={700} mb={0.5}>
-          Tizimga kirish
+          Ro&apos;yxatdan o&apos;tish
         </Typography>
-        <Typography variant="body2" color="text.secondary" mb={3}>
-          Email va parolingizni kiriting
+        <Typography variant="body2" color="text.secondary" mb={2.5}>
+          Maktab ma&apos;lumotlarini kiriting
         </Typography>
 
         {error && (
@@ -130,23 +135,91 @@ export default function LoginPage() {
         <Box
           component="form"
           onSubmit={handleSubmit(onSubmit)}
-          sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}
+          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
         >
+          <Typography
+            variant="caption"
+            fontWeight={600}
+            color="text.secondary"
+            textTransform="uppercase"
+            letterSpacing={1}
+          >
+            Maktab ma&apos;lumotlari
+          </Typography>
+
           <TextField
-            label="Email"
-            placeholder="example@school.uz"
+            label="Maktab nomi"
+            placeholder="Masalan: 12-IDUM"
             size="small"
             fullWidth
-            autoComplete="email"
+            {...register("schoolName")}
+            error={!!errors.schoolName}
+            helperText={errors.schoolName?.message}
+          />
+
+          <TextField
+            label="Maktab manzili"
+            placeholder="Viloyat, tuman, ko'cha..."
+            size="small"
+            fullWidth
+            {...register("schoolAddress")}
+            error={!!errors.schoolAddress}
+            helperText={errors.schoolAddress?.message}
+          />
+
+          <TextField
+            label="Maktab telefon raqami"
+            placeholder="+998"
+            size="small"
+            fullWidth
+            {...register("schoolPhone")}
+            error={!!errors.schoolPhone}
+            helperText={errors.schoolPhone?.message}
+          />
+
+          <Typography
+            variant="caption"
+            fontWeight={600}
+            color="text.secondary"
+            textTransform="uppercase"
+            letterSpacing={1}
+            mt={0.5}
+          >
+            Admin ma&apos;lumotlari
+          </Typography>
+
+          <TextField
+            label="To'liq ismingiz"
+            placeholder="Ism va familiyangiz"
+            size="small"
+            fullWidth
+            {...register("fullName")}
+            error={!!errors.fullName}
+            helperText={errors.fullName?.message}
+          />
+
+          <TextField
+            label="Email manzil"
+            placeholder="example@gmail.com"
+            size="small"
+            fullWidth
             {...register("email")}
             error={!!errors.email}
             helperText={errors.email?.message}
           />
 
           <TextField
-            label="Parol"
-            placeholder="Parolingizni kiriting"
-            autoComplete="current-password"
+            label="Shaxsiy telefon"
+            placeholder="+998"
+            size="small"
+            fullWidth
+            {...register("phone")}
+            error={!!errors.phone}
+            helperText={errors.phone?.message}
+          />
+
+          <TextField
+            label="Parol yarating"
             type={showPassword ? "text" : "password"}
             size="small"
             fullWidth
@@ -168,61 +241,33 @@ export default function LoginPage() {
             }}
           />
 
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <FormControlLabel
-              control={<Checkbox size="small" />}
-              label={
-                <Typography variant="body2" color="text.secondary">
-                  Eslab qolish
-                </Typography>
-              }
-            />
-            <MuiLink
-              href="#"
-              sx={{
-                fontSize: "0.8rem",
-                color: "#4F46E5",
-                textDecoration: "none",
-                "&:hover": { textDecoration: "underline" },
-              }}
-            >
-              Parolni unutdingizmi?
-            </MuiLink>
-          </Box>
-
           <Button
             type="submit"
             variant="contained"
             fullWidth
             disabled={loading}
+            endIcon={
+              loading ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                <ArrowForward />
+              )
+            }
             sx={{
+              mt: 1,
               py: 1.4,
               fontSize: "0.95rem",
               bgcolor: "#4F46E5",
               "&:hover": { bgcolor: "#4338CA" },
             }}
           >
-            {loading ? (
-              <CircularProgress size={22} color="inherit" />
-            ) : (
-              "Kirish"
-            )}
+            Ro&apos;yxatdan o&apos;tish
           </Button>
 
-          <Typography
-            variant="body2"
-            textAlign="center"
-            color="text.secondary"
-          >
-            Hisobingiz yo&apos;qmi?{" "}
+          <Typography variant="body2" textAlign="center" color="text.secondary">
+            Akkauntingiz bormi?{" "}
             <MuiLink
-              href="/signup"
+              href="/login"
               sx={{
                 color: "#4F46E5",
                 fontWeight: 600,
@@ -230,7 +275,7 @@ export default function LoginPage() {
                 "&:hover": { textDecoration: "underline" },
               }}
             >
-              Ro&apos;yxatdan o&apos;tish
+              Kirish
             </MuiLink>
           </Typography>
         </Box>
