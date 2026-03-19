@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/abdukhalimov_front_end/Desktop/smart-attandence/src/config/**)",
+      "Read(//Users/abdukhalimov_front_end/Desktop/smart-attandence/src/components/auth/**)",
+      "Read(//Users/abdukhalimov_front_end/Desktop/smart-attandence/src/modules/school/schemas/**)",
+      "Read(//Users/abdukhalimov_front_end/Desktop/smart-attandence/src/modules/teacher/schemas/**)",
+      "Read(//Users/abdukhalimov_front_end/Desktop/smart-attandence/src/modules/class/schemas/**)",
+      "Read(//Users/abdukhalimov_front_end/Desktop/smart-attandence/src/components/student/schemas/**)"
+    ]
+  }
+}
