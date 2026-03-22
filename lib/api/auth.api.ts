@@ -1,21 +1,11 @@
 import api from "@/lib/axios";
 import { SignupFormData, LoginFormData } from "@/lib/validations/auth.schema";
-
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  timestamp: string;
-}
+import { ApiResponse } from "@/types";
+import { User } from "@/store/auth.store";
 
 interface AuthData {
   token: string;
-  user: {
-    _id: string;
-    schoolId: string;
-    fullName: string;
-    email: string;
-    role: string;
-  };
+  user: User;
 }
 
 export const authApi = {

@@ -5,17 +5,17 @@ import { BottomNavigation, BottomNavigationAction, Paper } from "@mui/material";
 import {
   Home,
   People,
-  Class,
   School,
-  Settings,
+  CalendarMonth,
+  EventNote,
 } from "@mui/icons-material";
 
 const navItems = [
   { label: "Bosh sahifa", icon: <Home />, path: "/dashboard" },
   { label: "O'qituvchilar", icon: <People />, path: "/dashboard/teachers" },
-  { label: "Sinflar", icon: <Class />, path: "/dashboard/classes" },
+  { label: "Jadval", icon: <CalendarMonth />, path: "/dashboard/schedules" },
   { label: "O'quvchilar", icon: <School />, path: "/dashboard/students" },
-  { label: "Sozlamalar", icon: <Settings />, path: "/dashboard/settings" },
+  { label: "Davomat", icon: <EventNote />, path: "/dashboard/attendance" },
 ];
 
 export default function BottomNav() {
@@ -52,10 +52,10 @@ export default function BottomNav() {
             },
           },
           "& .MuiBottomNavigationAction-label": {
-            fontSize: "0.65rem",
+            fontSize: "0.6rem",
             mt: 0.3,
             "&.Mui-selected": {
-              fontSize: "0.65rem",
+              fontSize: "0.6rem",
               fontWeight: 600,
             },
           },

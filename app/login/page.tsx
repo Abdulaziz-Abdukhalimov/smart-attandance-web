@@ -43,12 +43,7 @@ export default function LoginPage() {
     try {
       const res = await authApi.login(data);
       const { token, user } = res.data.data;
-      setAuth(token, {
-        sub: user._id,
-        role: user.role,
-        schoolId: user.schoolId,
-        email: user.email,
-      });
+      setAuth(token, user);
       router.push("/dashboard");
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
