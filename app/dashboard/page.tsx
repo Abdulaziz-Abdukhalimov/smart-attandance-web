@@ -32,6 +32,7 @@ import { useStudents } from "@/hooks/useStudents";
 import { useClasses } from "@/hooks/useClasses";
 import { useIsAdmin } from "@/hooks/useRole";
 import { useMyTodaySchedule } from "@/hooks/useSchedules";
+import { useWeeklyAttendance } from "@/hooks/useWeeklyAttendance";
 import ProfileDialog from "@/components/ProfileDialog";
 import { Schedule, Teacher, Subject } from "@/types";
 
@@ -98,10 +99,16 @@ export default function DashboardPage() {
   const { data: students, isLoading: loadingStudents } = useStudents();
   const { data: classes, isLoading: loadingClasses } = useClasses();
   const { data: todaySchedules, isLoading: loadingSchedules } = useMyTodaySchedule();
+  const { data: weeklyData } = useWeeklyAttendance();
 
   const teacherCount = teachers?.length ?? 0;
   const studentCount = students?.length ?? 0;
   const classCount = classes?.length ?? 0;
+
+  // Calculate overall attendance percentage from weekly data
+  const weeklyTotal = weeklyData?.reduce((sum, d) => sum + d.total, 0) ?? 0;
+  const weeklyPresent = weeklyData?.reduce((sum, d) => sum + d.present, 0) ?? 0;
+  const overallPercentage = weeklyTotal > 0 ? Math.round((weeklyPresent / weeklyTotal) * 100) : 0;
 
   const getSubjectName = (id: string | Subject) => {
     if (typeof id === "object") return id.name;
@@ -294,7 +301,7 @@ export default function DashboardPage() {
           />
           <StatCard
             label="Davomat %"
-            value="—"
+            value={weeklyTotal > 0 ? `${overallPercentage}%` : "—"}
             icon={<TrendingUp sx={{ fontSize: 22 }} />}
             color="#8B5CF6"
             bgColor="#F5F3FF"
@@ -337,50 +344,56 @@ export default function DashboardPage() {
                 />
               </Box>
 
-              {studentCount === 0 ? (
+              {weeklyTotal === 0 ? (
                 <Box sx={{ textAlign: "center", py: 4 }}>
                   <Typography variant="body2" color="text.secondary">
-                    Hali ma&apos;lumot yo&apos;q. Avval o&apos;quvchilar qo&apos;shing.
+                    Hali davomat ma&apos;lumotlari yo&apos;q
                   </Typography>
                 </Box>
               ) : (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 1.2 }}>
                   {["Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma"].map(
-                    (day) => (
-                      <Box
-                        key={day}
-                        sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
-                      >
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ width: 80, flexShrink: 0 }}
+                    (day, idx) => {
+                      const dayData = weeklyData?.[idx];
+                      const pct = dayData?.percentage ?? 0;
+                      const hasData = (dayData?.total ?? 0) > 0;
+                      const barColor = pct >= 80 ? "#10B981" : pct >= 50 ? "#F59E0B" : "#EF4444";
+                      return (
+                        <Box
+                          key={day}
+                          sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
                         >
-                          {day}
-                        </Typography>
-                        <LinearProgress
-                          variant="determinate"
-                          value={0}
-                          sx={{
-                            flex: 1,
-                            height: 6,
-                            borderRadius: 3,
-                            bgcolor: "#F1F5F9",
-                            "& .MuiLinearProgress-bar": {
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ width: 80, flexShrink: 0 }}
+                          >
+                            {day}
+                          </Typography>
+                          <LinearProgress
+                            variant="determinate"
+                            value={pct}
+                            sx={{
+                              flex: 1,
+                              height: 6,
                               borderRadius: 3,
-                              bgcolor: "#E2E8F0",
-                            },
-                          }}
-                        />
-                        <Typography
-                          variant="caption"
-                          fontWeight={600}
-                          sx={{ width: 32, textAlign: "right" }}
-                        >
-                          —
-                        </Typography>
-                      </Box>
-                    )
+                              bgcolor: "#F1F5F9",
+                              "& .MuiLinearProgress-bar": {
+                                borderRadius: 3,
+                                bgcolor: hasData ? barColor : "#E2E8F0",
+                              },
+                            }}
+                          />
+                          <Typography
+                            variant="caption"
+                            fontWeight={600}
+                            sx={{ width: 32, textAlign: "right", color: hasData ? barColor : "#94A3B8" }}
+                          >
+                            {hasData ? `${pct}%` : "—"}
+                          </Typography>
+                        </Box>
+                      );
+                    }
                   )}
                 </Box>
               )}

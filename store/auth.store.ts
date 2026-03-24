@@ -42,10 +42,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ token: null, user: null });
   },
   hydrate: () => {
+    if (typeof window === "undefined") return;
     const token = localStorage.getItem("token");
     const userStr = localStorage.getItem("user");
     if (token && userStr) {
-      set({ token, user: JSON.parse(userStr) });
+      try {
+        set({ token, user: JSON.parse(userStr) });
+      } catch {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
     }
   },
 }));

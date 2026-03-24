@@ -84,8 +84,8 @@ export interface AttendanceSession {
   schoolId: string;
   scheduleId: string;
   teacherId: string;
-  classId: string;
-  subjectId: string;
+  classId: string | { _id: string; name: string; grade: string; section: string };
+  subjectId: string | { _id: string; name: string };
   date: string;
   period: number;
   openedAt: string;

@@ -21,7 +21,7 @@ import { Search, Add, Delete, Close, Edit, MenuBook } from "@mui/icons-material"
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useSubjects, useCreateSubject, useDeleteSubject } from "@/hooks/useSubjects";
+import { useSubjects, useCreateSubject, useUpdateSubject, useDeleteSubject } from "@/hooks/useSubjects";
 import { useIsAdmin } from "@/hooks/useRole";
 import { Subject } from "@/types";
 
@@ -39,25 +39,48 @@ export default function SubjectsPage() {
   const isAdmin = useIsAdmin();
   const { data: subjects, isLoading } = useSubjects();
   const createSubject = useCreateSubject();
+  const updateSubject = useUpdateSubject();
   const deleteSubject = useDeleteSubject();
+
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [error, setError] = useState("");
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<SubjectForm>({
-    resolver: zodResolver(subjectSchema),
-  });
+  const createForm = useForm<SubjectForm>({ resolver: zodResolver(subjectSchema) });
+  const editForm = useForm<SubjectForm>({ resolver: zodResolver(subjectSchema) });
 
   const filtered = subjects?.filter((s: Subject) =>
     s.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const onSubmit = async (data: SubjectForm) => {
+  const handleCreate = async (data: SubjectForm) => {
     setError("");
     try {
       await createSubject.mutateAsync(data);
-      setOpen(false);
-      reset();
+      setCreateOpen(false);
+      createForm.reset();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e.response?.data?.message || "Xatolik yuz berdi");
+    }
+  };
+
+  const openEdit = (subject: Subject) => {
+    setEditingSubject(subject);
+    editForm.reset({ name: subject.name });
+    setError("");
+    setEditOpen(true);
+  };
+
+  const handleEdit = async (data: SubjectForm) => {
+    if (!editingSubject) return;
+    setError("");
+    try {
+      await updateSubject.mutateAsync({ id: editingSubject._id, data });
+      setEditOpen(false);
+      setEditingSubject(null);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
       setError(e.response?.data?.message || "Xatolik yuz berdi");
@@ -79,7 +102,7 @@ export default function SubjectsPage() {
           </Typography>
           {isAdmin && (
             <IconButton
-              onClick={() => setOpen(true)}
+              onClick={() => { setError(""); createForm.reset(); setCreateOpen(true); }}
               sx={{ bgcolor: "#4F46E5", color: "white", "&:hover": { bgcolor: "#4338CA" } }}
               size="small"
             >
@@ -165,7 +188,7 @@ export default function SubjectsPage() {
                   </Box>
                   {isAdmin && (
                     <Box sx={{ display: "flex", gap: 0.5 }}>
-                      <IconButton size="small">
+                      <IconButton size="small" onClick={() => openEdit(subject)}>
                         <Edit sx={{ fontSize: 18, color: "#64748B" }} />
                       </IconButton>
                       <IconButton size="small" onClick={() => handleDelete(subject._id)}>
@@ -180,17 +203,13 @@ export default function SubjectsPage() {
         </Box>
       </Box>
 
-      {/* Add Subject Dialog */}
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+      {/* Create Subject Dialog */}
+      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography variant="subtitle1" fontWeight={700}>
-            Yangi fan
-          </Typography>
-          <IconButton size="small" onClick={() => setOpen(false)}>
-            <Close />
-          </IconButton>
+          <Typography variant="subtitle1" fontWeight={700}>Yangi fan</Typography>
+          <IconButton size="small" onClick={() => setCreateOpen(false)}><Close /></IconButton>
         </DialogTitle>
-        <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+        <Box component="form" onSubmit={createForm.handleSubmit(handleCreate)}>
           <DialogContent sx={{ pt: 1 }}>
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
             <TextField
@@ -198,22 +217,42 @@ export default function SubjectsPage() {
               placeholder="Masalan: Matematika"
               size="small"
               fullWidth
-              {...register("name")}
-              error={!!errors.name}
-              helperText={errors.name?.message}
+              {...createForm.register("name")}
+              error={!!createForm.formState.errors.name}
+              helperText={createForm.formState.errors.name?.message}
             />
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setOpen(false)} color="inherit">
-              Bekor qilish
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={createSubject.isPending}
-              sx={{ bgcolor: "#4F46E5", "&:hover": { bgcolor: "#4338CA" } }}
-            >
+            <Button onClick={() => setCreateOpen(false)} color="inherit">Bekor qilish</Button>
+            <Button type="submit" variant="contained" disabled={createSubject.isPending} sx={{ bgcolor: "#4F46E5", "&:hover": { bgcolor: "#4338CA" } }}>
               {createSubject.isPending ? "Saqlanmoqda..." : "Saqlash"}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+
+      {/* Edit Subject Dialog */}
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography variant="subtitle1" fontWeight={700}>Fanni tahrirlash</Typography>
+          <IconButton size="small" onClick={() => setEditOpen(false)}><Close /></IconButton>
+        </DialogTitle>
+        <Box component="form" onSubmit={editForm.handleSubmit(handleEdit)}>
+          <DialogContent sx={{ pt: 1 }}>
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+            <TextField
+              label="Fan nomi"
+              size="small"
+              fullWidth
+              {...editForm.register("name")}
+              error={!!editForm.formState.errors.name}
+              helperText={editForm.formState.errors.name?.message}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setEditOpen(false)} color="inherit">Bekor qilish</Button>
+            <Button type="submit" variant="contained" disabled={updateSubject.isPending} sx={{ bgcolor: "#4F46E5", "&:hover": { bgcolor: "#4338CA" } }}>
+              {updateSubject.isPending ? "Saqlanmoqda..." : "Saqlash"}
             </Button>
           </DialogActions>
         </Box>

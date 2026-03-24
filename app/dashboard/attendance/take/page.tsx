@@ -5,12 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
-  Avatar,
   Button,
   IconButton,
-  Chip,
   Skeleton,
   Alert,
   CircularProgress,
@@ -20,18 +16,25 @@ import {
   CheckCircle,
   Cancel,
   AccessTime,
-  Send,
+  Save,
 } from "@mui/icons-material";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { schedulesApi } from "@/lib/api/schedules.api";
 import { studentsApi } from "@/lib/api/students.api";
 import { attendanceApi } from "@/lib/api/attendance.api";
-import { Student, AttendanceStatus, Schedule } from "@/types";
+import { Student, AttendanceStatus } from "@/types";
+import { formatDateLocal } from "@/lib/date";
 
 type StudentRecord = {
   studentId: string;
   status: AttendanceStatus;
 };
+
+const statusButtons: { value: AttendanceStatus; label: string; color: string; activeColor: string; activeBg: string }[] = [
+  { value: "PRESENT", label: "Keldi", color: "#64748B", activeColor: "#fff", activeBg: "#10B981" },
+  { value: "ABSENT", label: "Kelmadi", color: "#64748B", activeColor: "#fff", activeBg: "#EF4444" },
+  { value: "LATE", label: "Kechikdi", color: "#64748B", activeColor: "#fff", activeBg: "#F59E0B" },
+];
 
 function TakeAttendanceContent() {
   const searchParams = useSearchParams();
@@ -42,7 +45,6 @@ function TakeAttendanceContent() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [records, setRecords] = useState<StudentRecord[]>([]);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   // Fetch schedule details
   const { data: schedule, isLoading: loadingSchedule } = useQuery({
@@ -93,8 +95,7 @@ function TakeAttendanceContent() {
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { message?: string } } };
       const msg = e.response?.data?.message || "Sessiyani ochishda xatolik";
-      // If session already exists, try to get existing sessions
-      if (msg.includes("already") || msg.includes("exists") || msg.includes("mavjud")) {
+      if (msg.includes("already") || msg.includes("exists") || msg.includes("mavjud") || msg.includes("Session already")) {
         fetchExistingSession();
       } else {
         setError(msg);
@@ -107,9 +108,8 @@ function TakeAttendanceContent() {
     mutationFn: (data: { sessionId: string; records: StudentRecord[] }) =>
       attendanceApi.markAttendance(data.sessionId, data.records),
     onSuccess: () => {
-      setSuccess("Davomat muvaffaqiyatli saqlandi!");
-      setError("");
       queryClient.invalidateQueries({ queryKey: ["attendance-sessions"] });
+      router.push("/dashboard/attendance");
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { message?: string } } };
@@ -119,7 +119,7 @@ function TakeAttendanceContent() {
 
   const fetchExistingSession = async () => {
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = formatDateLocal(new Date());
       const res = await attendanceApi.getSessions(today);
       const sessions = res.data.data;
       const existing = sessions.find(
@@ -127,7 +127,6 @@ function TakeAttendanceContent() {
       );
       if (existing) {
         setSessionId(existing._id);
-        // Load existing records
         const attRes = await attendanceApi.getSessionAttendance(existing._id);
         const existingRecords = attRes.data.data;
         if (existingRecords.length > 0 && students) {
@@ -149,14 +148,9 @@ function TakeAttendanceContent() {
     }
   };
 
-  const toggleStatus = (studentId: string) => {
+  const setStatus = (studentId: string, status: AttendanceStatus) => {
     setRecords((prev) =>
-      prev.map((r) => {
-        if (r.studentId !== studentId) return r;
-        const order: AttendanceStatus[] = ["PRESENT", "LATE", "ABSENT"];
-        const idx = order.indexOf(r.status);
-        return { ...r, status: order[(idx + 1) % 3] };
-      })
+      prev.map((r) => (r.studentId === studentId ? { ...r, status } : r))
     );
   };
 
@@ -166,12 +160,6 @@ function TakeAttendanceContent() {
       return;
     }
     markAttendance.mutate({ sessionId, records });
-  };
-
-  const statusConfig: Record<AttendanceStatus, { label: string; color: string; bgcolor: string; icon: React.ReactNode }> = {
-    PRESENT: { label: "Keldi", color: "#10B981", bgcolor: "#ECFDF5", icon: <CheckCircle sx={{ fontSize: 18 }} /> },
-    ABSENT: { label: "Kelmadi", color: "#EF4444", bgcolor: "#FEF2F2", icon: <Cancel sx={{ fontSize: 18 }} /> },
-    LATE: { label: "Kechikdi", color: "#F59E0B", bgcolor: "#FFFBEB", icon: <AccessTime sx={{ fontSize: 18 }} /> },
   };
 
   const getSubjectName = (id: string | { name: string }) => {
@@ -192,74 +180,56 @@ function TakeAttendanceContent() {
     return (
       <Box sx={{ p: 3, textAlign: "center" }}>
         <Typography>Jadval topilmadi</Typography>
-        <Button onClick={() => router.back()} sx={{ mt: 2 }}>Orqaga</Button>
+        <Button onClick={() => router.push("/dashboard")} sx={{ mt: 2 }}>Orqaga</Button>
       </Box>
     );
   }
 
   return (
-    <Box>
-      {/* Header */}
+    <Box sx={{ pb: sessionId ? "100px" : 0 }}>
+      {/* Header with schedule info */}
       <Box
         sx={{
+          background: "linear-gradient(135deg, #1E3A5F 0%, #0F172A 100%)",
+          color: "white",
           px: 2.5,
           pt: 3,
-          pb: 2,
-          display: "flex",
-          alignItems: "center",
-          gap: 1.5,
+          pb: 2.5,
         }}
       >
-        <IconButton size="small" onClick={() => router.back()}>
-          <ArrowBack />
-        </IconButton>
-        <Typography variant="h6" fontWeight={700}>
-          Davomat olish
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+          <IconButton size="small" onClick={() => router.push("/dashboard")} sx={{ color: "white" }}>
+            <ArrowBack />
+          </IconButton>
+          <Typography variant="subtitle1" fontWeight={700}>
+            Davomat olish
+          </Typography>
+        </Box>
+
+        {loadingSchedule ? (
+          <Skeleton variant="rounded" height={40} sx={{ borderRadius: 2, bgcolor: "rgba(255,255,255,0.1)" }} />
+        ) : schedule ? (
+          <Box>
+            <Typography variant="h6" fontWeight={700}>
+              {getClassName(schedule.classId as string | { grade: string; section: string })} — {getSubjectName(schedule.subjectId)}
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.3 }}>
+              {schedule.period}-dars • {schedule.startTime} - {schedule.endTime} • {new Date().toLocaleDateString("uz-UZ")}
+            </Typography>
+          </Box>
+        ) : null}
       </Box>
 
-      {/* Schedule Info */}
-      {loadingSchedule ? (
-        <Box sx={{ px: 2.5 }}>
-          <Skeleton variant="rounded" height={80} sx={{ borderRadius: 3 }} />
-        </Box>
-      ) : schedule ? (
-        <Box sx={{ px: 2.5, mb: 2 }}>
-          <Card
-            sx={{
-              borderRadius: 3,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-              border: "1px solid #F1F5F9",
-              borderLeft: "4px solid #4F46E5",
-            }}
-          >
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-              <Typography variant="body1" fontWeight={700}>
-                {getSubjectName(schedule.subjectId)}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {getClassName(schedule.classId as string | { grade: string; section: string })} • {schedule.period}-dars • {schedule.startTime} - {schedule.endTime}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-      ) : null}
-
-      {/* Errors / Success */}
+      {/* Alerts */}
       {error && (
-        <Box sx={{ px: 2.5, mb: 2 }}>
+        <Box sx={{ px: 2.5, mt: 2 }}>
           <Alert severity="error" onClose={() => setError("")}>{error}</Alert>
-        </Box>
-      )}
-      {success && (
-        <Box sx={{ px: 2.5, mb: 2 }}>
-          <Alert severity="success" onClose={() => setSuccess("")}>{success}</Alert>
         </Box>
       )}
 
       {/* Open Session Button */}
       {!sessionId && (
-        <Box sx={{ px: 2.5, mb: 2 }}>
+        <Box sx={{ px: 2.5, mt: 3 }}>
           <Button
             variant="contained"
             fullWidth
@@ -281,134 +251,147 @@ function TakeAttendanceContent() {
         </Box>
       )}
 
-      {/* Stats Summary */}
-      {records.length > 0 && (
-        <Box sx={{ px: 2.5, mb: 2, display: "flex", gap: 1 }}>
-          <Chip
-            icon={<CheckCircle sx={{ fontSize: 14 }} />}
-            label={`${presentCount} keldi`}
-            size="small"
-            sx={{ bgcolor: "#ECFDF5", color: "#10B981", fontWeight: 600, fontSize: "0.7rem" }}
-          />
-          <Chip
-            icon={<AccessTime sx={{ fontSize: 14 }} />}
-            label={`${lateCount} kechikdi`}
-            size="small"
-            sx={{ bgcolor: "#FFFBEB", color: "#F59E0B", fontWeight: 600, fontSize: "0.7rem" }}
-          />
-          <Chip
-            icon={<Cancel sx={{ fontSize: 14 }} />}
-            label={`${absentCount} kelmadi`}
-            size="small"
-            sx={{ bgcolor: "#FEF2F2", color: "#EF4444", fontWeight: 600, fontSize: "0.7rem" }}
-          />
-        </Box>
-      )}
+      {/* Student List with 3 buttons */}
+      <Box sx={{ px: 2.5, mt: 2 }}>
+        {loadingStudents ? (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} variant="rounded" height={72} sx={{ borderRadius: 3 }} />
+            ))}
+          </Box>
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {students?.map((student: Student, idx: number) => {
+              const record = records.find((r) => r.studentId === student._id);
+              const currentStatus = record?.status || "PRESENT";
 
-      {/* Student List */}
-      {loadingStudents ? (
-        <Box sx={{ px: 2.5, display: "flex", flexDirection: "column", gap: 1 }}>
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} variant="rounded" height={64} sx={{ borderRadius: 3 }} />
-          ))}
-        </Box>
-      ) : (
-        <Box sx={{ px: 2.5, display: "flex", flexDirection: "column", gap: 1 }}>
-          {students?.map((student: Student, idx: number) => {
-            const record = records.find((r) => r.studentId === student._id);
-            const status = record?.status || "PRESENT";
-            const config = statusConfig[status];
-
-            return (
-              <Card
-                key={student._id}
-                onClick={() => sessionId && toggleStatus(student._id)}
-                sx={{
-                  borderRadius: 3,
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                  border: "1px solid #F1F5F9",
-                  cursor: sessionId ? "pointer" : "default",
-                  opacity: sessionId ? 1 : 0.6,
-                  "&:active": sessionId ? { transform: "scale(0.98)" } : {},
-                  transition: "transform 0.1s",
-                }}
-              >
-                <CardContent
-                  sx={{ p: 1.5, "&:last-child": { pb: 1.5 }, display: "flex", alignItems: "center", gap: 1.5 }}
+              return (
+                <Box
+                  key={student._id}
+                  sx={{
+                    py: 1.5,
+                    px: 2,
+                    borderRadius: 3,
+                    bgcolor: "white",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                    border: "1px solid #F1F5F9",
+                    opacity: sessionId ? 1 : 0.5,
+                  }}
                 >
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: "50%",
-                      bgcolor: "#F1F5F9",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 600,
-                      color: "#64748B",
-                      fontSize: "0.7rem",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {idx + 1}
-                  </Typography>
-                  <Avatar
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      bgcolor: "#4F46E5",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {student.firstName[0]}{student.lastName[0]}
-                  </Avatar>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="body2" fontWeight={600} noWrap>
-                      {student.firstName} {student.lastName}
+                  {/* First line: number + name */}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600} sx={{ width: 20, flexShrink: 0 }}>
+                      {idx + 1}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={600}>
+                      {student.lastName} {student.firstName}
                     </Typography>
                   </Box>
-                  <Chip
-                    icon={config.icon as React.ReactElement}
-                    label={config.label}
-                    size="small"
-                    sx={{
-                      height: 28,
-                      fontSize: "0.65rem",
-                      fontWeight: 600,
-                      bgcolor: config.bgcolor,
-                      color: config.color,
-                      "& .MuiChip-icon": { color: config.color },
-                    }}
-                  />
-                </CardContent>
-              </Card>
-            );
-          })}
-        </Box>
-      )}
 
-      {/* Submit Button */}
+                  {/* Second line: 3 status buttons */}
+                  <Box sx={{ display: "flex", gap: 0.8, pl: 3.5 }}>
+                    {statusButtons.map((btn) => {
+                      const isActive = currentStatus === btn.value;
+                      return (
+                        <Button
+                          key={btn.value}
+                          size="small"
+                          variant={isActive ? "contained" : "outlined"}
+                          disabled={!sessionId}
+                          onClick={() => setStatus(student._id, btn.value)}
+                          sx={{
+                            flex: 1,
+                            py: 0.6,
+                            fontSize: "0.7rem",
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            textTransform: "none",
+                            ...(isActive
+                              ? {
+                                  bgcolor: btn.activeBg,
+                                  color: btn.activeColor,
+                                  border: `1px solid ${btn.activeBg}`,
+                                  boxShadow: "none",
+                                  "&:hover": { bgcolor: btn.activeBg, boxShadow: "none" },
+                                }
+                              : {
+                                  color: "#94A3B8",
+                                  borderColor: "#E2E8F0",
+                                  bgcolor: "transparent",
+                                  "&:hover": { borderColor: btn.activeBg, color: btn.activeBg, bgcolor: "transparent" },
+                                }),
+                          }}
+                        >
+                          {btn.label}
+                        </Button>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+      </Box>
+
+      {/* Fixed bottom bar with stats + save button */}
       {sessionId && records.length > 0 && (
-        <Box sx={{ px: 2.5, py: 3 }}>
+        <Box
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            bgcolor: "white",
+            borderTop: "1px solid #E2E8F0",
+            px: 2.5,
+            py: 1.5,
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            zIndex: 1100,
+          }}
+        >
+          {/* Stats */}
+          <Box sx={{ flex: 1, display: "flex", gap: 1.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
+              <CheckCircle sx={{ fontSize: 14, color: "#10B981" }} />
+              <Typography variant="caption" fontWeight={700} color="#10B981">
+                {presentCount}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
+              <Cancel sx={{ fontSize: 14, color: "#EF4444" }} />
+              <Typography variant="caption" fontWeight={700} color="#EF4444">
+                {absentCount}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
+              <AccessTime sx={{ fontSize: 14, color: "#F59E0B" }} />
+              <Typography variant="caption" fontWeight={700} color="#F59E0B">
+                {lateCount}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Save button */}
           <Button
             variant="contained"
-            fullWidth
             onClick={handleSubmit}
             disabled={markAttendance.isPending}
-            startIcon={markAttendance.isPending ? <CircularProgress size={18} sx={{ color: "white" }} /> : <Send />}
+            startIcon={markAttendance.isPending ? <CircularProgress size={16} sx={{ color: "white" }} /> : <Save />}
             sx={{
-              bgcolor: "#10B981",
-              "&:hover": { bgcolor: "#059669" },
+              bgcolor: "#4F46E5",
+              "&:hover": { bgcolor: "#4338CA" },
               borderRadius: 2,
-              py: 1.5,
+              px: 3,
+              py: 1,
               fontWeight: 600,
-              fontSize: "0.9rem",
+              fontSize: "0.85rem",
+              textTransform: "none",
             }}
           >
-            {markAttendance.isPending ? "Saqlanmoqda..." : "Davomatni saqlash"}
+            Saqlash
           </Button>
         </Box>
       )}
