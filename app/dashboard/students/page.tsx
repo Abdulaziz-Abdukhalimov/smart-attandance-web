@@ -142,35 +142,26 @@ export default function StudentsPage() {
           )}
         </Box>
 
-        <TextField
-          placeholder="O'quvchi qidirish..."
-          size="small"
-          fullWidth
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search sx={{ color: "#94A3B8", fontSize: 20 }} />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ mb: 1.5 }}
-        />
+        {filterClass && (
+          <TextField
+            placeholder="O'quvchi qidirish..."
+            size="small"
+            fullWidth
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ color: "#94A3B8", fontSize: 20 }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ mb: 1.5 }}
+          />
+        )}
 
         {/* Class filter */}
         <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
-          <Chip
-            label="Barchasi"
-            size="small"
-            onClick={() => setFilterClass("")}
-            sx={{
-              fontWeight: 600,
-              fontSize: "0.7rem",
-              bgcolor: !filterClass ? "#4F46E5" : "#F1F5F9",
-              color: !filterClass ? "white" : "#64748B",
-            }}
-          />
           {classes?.map((cls: Class) => (
             <Chip
               key={cls._id}
@@ -187,7 +178,21 @@ export default function StudentsPage() {
           ))}
         </Box>
 
-        {isLoading && (
+        {/* Welcome message when no class selected */}
+        {!filterClass && (
+          <Box sx={{ textAlign: "center", py: 8 }}>
+            <Typography variant="h6" fontWeight={600} color="text.secondary" mb={1}>
+              O&apos;quvchilar
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Siz bu yerda sinflar bo&apos;yicha o&apos;quvchilarni ko&apos;rishingiz mumkin.
+              <br />
+              Yuqoridagi sinfni tanlang.
+            </Typography>
+          </Box>
+        )}
+
+        {filterClass && isLoading && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
             {[1, 2, 3].map((i) => (
               <Skeleton key={i} variant="rounded" height={72} sx={{ borderRadius: 3 }} />
@@ -195,16 +200,16 @@ export default function StudentsPage() {
           </Box>
         )}
 
-        {!isLoading && filtered?.length === 0 && (
+        {filterClass && !isLoading && filtered?.length === 0 && (
           <Box sx={{ textAlign: "center", py: 6 }}>
             <Typography variant="body2" color="text.secondary">
-              O&apos;quvchilar topilmadi
+              Bu sinfda o&apos;quvchilar topilmadi
             </Typography>
           </Box>
         )}
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          {filtered?.map((student: Student) => (
+          {filterClass && filtered?.map((student: Student) => (
             <Card
               key={student._id}
               sx={{
